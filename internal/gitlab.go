@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xanzy/go-gitlab"
+	"gitlab.com/gitlab-org/api/client-go"
 )
 
 const (
@@ -39,9 +39,14 @@ func (s *GitLab) CurrentUser(ctx context.Context) (*User, error) {
 		return nil, fmt.Errorf("get user emails: %w", err)
 	}
 
-	emailAddresses := make([]string, 0, len(emails))
-	for _, email := range emails {
-		emailAddresses = append(emailAddresses, email.Email)
+	var emailAddresses []string
+	if len(emails) == 0 {
+		log.Printf("No emails returned from ListEmails; using fallback user.Email: %s", user.Email)
+		emailAddresses = []string{user.Email}
+	} else {
+		for _, email := range emails {
+			emailAddresses = append(emailAddresses, email.Email)
+		}
 	}
 
 	return &User{
@@ -63,11 +68,11 @@ func (s *GitLab) FetchProjectPage(ctx context.Context, page int, user *User, idA
 			Page:    page,
 			PerPage: perPage,
 		},
-		OrderBy:    gitlab.String("id"),
-		Sort:       gitlab.String("asc"),
-		Simple:     gitlab.Bool(true),
-		Membership: gitlab.Bool(true),
-		IDAfter:    gitlab.Int(idAfter),
+		OrderBy:    gitlab.Ptr("id"),
+		Sort:       gitlab.Ptr("asc"),
+		Simple:     gitlab.Ptr(true),
+		Membership: gitlab.Ptr(true),
+		IDAfter:    gitlab.Ptr(idAfter),
 	}
 
 	projs, resp, err := s.gitlabClient.Projects.ListProjects(opt, gitlab.WithContext(ctx))
@@ -161,11 +166,11 @@ func (s *GitLab) fetchCommitPage(
 			PerPage: perPage,
 			Page:    page,
 		},
-		All: gitlab.Bool(true),
+		All: gitlab.Ptr(true),
 	}
 
 	if !since.IsZero() {
-		opt.Since = gitlab.Time(since)
+		opt.Since = gitlab.Ptr(since)
 	}
 
 	comms, resp, err := s.gitlabClient.Commits.ListCommits(projectID, opt, gitlab.WithContext(ctx))
